@@ -7,7 +7,7 @@ import docx
 st.set_page_config(page_title="SOP Assistant | AI", page_icon="🤖", layout="wide")
 
 st.markdown("""<style>
-.main-header{font-size:3rem;font-weight:bold;background:linear-gradient(90deg,#667eea 0%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;padding:1rem 0}
+.main-header{font-size:3rem;font-weight:bold;background:linear-gradient(90deg,#667eea 0%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-color:transparent;}
 .stat-box{background:#1e293b;padding:1.5rem;border-radius:10px;border-left:4px solid #667eea;margin:1rem 0}
 </style>""", unsafe_allow_html=True)
 
@@ -19,7 +19,7 @@ def init_chatbot():
         collection=client.get_or_create_collection("sop_chunks")
         return groq_client,collection,client
     except Exception as e:
-        st.error(f"❌ Error: {e}")
+        st.error(f"❌ Initialization error: {e}")
         return None,None,None
 
 groq_client,collection,client=init_chatbot()
@@ -36,7 +36,7 @@ def process_docx(file):
     full_text=[]
     for element in doc.element.body:
         if element.tag.endswith('p'):
-            para=docx.text.paragraph.Paragraph(element,doc)
+            para=doc.text.paragraph.Paragraph(element,doc)
             if para.text.strip():full_text.append(para.text)
         elif element.tag.endswith('tbl'):
             table=docx.table.Table(element,doc)
@@ -48,16 +48,18 @@ def process_docx(file):
 def answer_sop(question):
     start=time.time()
     results=collection.query(query_texts=[question],n_results=5)
+    ids=results["ids"][0]
     context="\n\n---\n\n".join(results["documents"][0])
     prompt=f"""You are an SOP assistant. Use ONLY the context below.
+
 Context: {context}
 Question: {question}
 Answer:"""
     chat=groq_client.chat.completions.create(model="llama-3.3-70b-versatile",messages=[{"role":"user","content":prompt}],temperature=0.1)
-    return chat.choices[0].message.content,results["ids"][0][0],int((time.time()-start)*1000)
+    return chat.choices[0].message.content,ids[0],int((time.time()-start)*1000)
 
 st.markdown('<h1 class="main-header">🤖 Incident Management SOP Assistant</h1>',unsafe_allow_html=True)
-st.markdown("<p style='text-align:center;color:#94a3b8;font-size:1.1rem'>AI-Powered Knowledge Base for DevOps & SRE Teams</p>",unsafe_allow_html=True)
+st.markdown('<p style="text-align:center;color:#94a3b8;font-size:1.1rem">AI-Powered Knowledge Base for DevOps & SRE Teams</p>',unsafe_allow_html=True)
 
 if collection.count()==0:
     st.info("📋 **First-time setup:** Upload your SOP document")
@@ -80,13 +82,13 @@ else:
     with col1:
         st.markdown(f'<div class="stat-box"><h3>📊 Database</h3><p style="font-size:2rem;font-weight:bold;color:#10b981">{collection.count()}</p><p style="color:#94a3b8">Chunks Indexed</p></div>',unsafe_allow_html=True)
     with col2:
-        st.markdown('<div class="stat-box"><h3>⚡ Speed</h3><p style="font-size:2rem;font-weight:bold;color:#3b82f6">~690ms</p><p style="color:#94a3b8">Avg Latency</p></div>',unsafe_allow_html=True)
+        st.markdown('<div class="stat-box"><h3>⚡ Speed</h3><p style="font-size:2rem;font-weight:bold;color:#3b82f6">~690ms</p><p style="color:#94a3b8">Avg Response</p></div>',unsafe_allow_html=True)
     with col3:
-        st.markdown('<div class="stat-box"><h3>🤖 Model</h3><p style="font-size:1.3rem;font-weight:bold;color:#8b5cf6">Llama-3.3-70b</p><p style="color:#94a3b8">via Groq</p></div>',unsafe_allow_html=True)
-    
+        st.markdown('<div class="stat-box"><h3>🤖 Model</h3><p style="font-size:1.3rem;font-weight:bold;color:#8b5cf6">Llama-3.3-70b</p><p style="color:#94a3b8">Groq API</p></div>',unsafe_allow_html=True)
+
     with st.sidebar:
         st.markdown("### 💡 Example Questions")
-        for icon,q in[("🔴","What are the severity levels?"),("📅","Update cadence for Sev2?"),("⚠️","Handle NodeNotReady?"),("🔍","Tools for detection?"),("📝","What to document?")]:
+        for icon,q in [("🔴","What are the severity levels?"),("📅","Update cadence for Sev2?"),("⚠️","Handle NodeNotReady?"),("🔍","Tools for detection?"),("📝","What to document?")]:
             if st.button(f"{icon} {q}",key=q,use_container_width=True):
                 st.session_state.clicked_question=q
         st.divider()
@@ -97,18 +99,18 @@ else:
             st.success("✅ Reset! Refresh page.")
             time.sleep(1)
             st.rerun()
-    
+
     if "messages" not in st.session_state:
         st.session_state.messages=[]
-    
+
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"],avatar="🧑‍💻" if msg["role"]=="user" else "🤖"):
             st.markdown(msg["content"])
             if "metadata" in msg:
                 st.caption(f"📎 {msg['metadata']['source']} | ⚡ {msg['metadata']['latency']}ms")
-    
+
     prompt=st.session_state.pop("clicked_question",None) or st.chat_input("💬 Ask about incidents, procedures...")
-    
+
     if prompt:
         st.session_state.messages.append({"role":"user","content":prompt})
         with st.chat_message("user",avatar="🧑‍💻"):
@@ -119,5 +121,3 @@ else:
                 st.markdown(response)
                 st.caption(f"📎 `{source}` | ⚡ {latency}ms")
         st.session_state.messages.append({"role":"assistant","content":response,"metadata":{"source":source,"latency":latency}})
-
-    return chat.choices[0].message.content, ids[0], latency
