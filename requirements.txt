@@ -1,3 +1,5 @@
 streamlit
 chromadb==0.5.23
 groq
+python-docx
+
