@@ -50,9 +50,11 @@ def answer_sop(question):
     ids=results["ids"][0]
     context="\n\n---\n\n".join(results["documents"][0])
     prompt=f"""You are an SOP assistant. Use ONLY the context below.
-
+    
 Context: {context}
+
 Question: {question}
+
 Answer:"""
     chat=groq_client.chat.completions.create(model="llama-3.3-70b-versatile",messages=[{"role":"user","content":prompt}],temperature=0.1)
     return chat.choices[0].message.content,ids[0],int((time.time()-start)*1000)
@@ -60,22 +62,9 @@ Answer:"""
 st.markdown('<h1 class="main-header">🤖 Incident Management SOP Assistant</h1>',unsafe_allow_html=True)
 st.markdown('<p style="text-align:center;color:#94a3b8;font-size:1.1rem">AI-Powered Knowledge Base for DevOps & SRE Teams</p>',unsafe_allow_html=True)
 
+# Main content area
 if collection.count()==0:
-    st.info("📋 **First-time setup:** Upload your SOP document")
-    uploaded_file=st.file_uploader("📁 Upload SOP Document",type=['docx'])
-    if uploaded_file:
-        with st.spinner("⚡ Processing..."):
-            try:
-                raw_text=process_docx(uploaded_file)
-                st.success(f"✅ Extracted **{len(raw_text):,}** characters")
-                chunks=chunk_text(raw_text)
-                st.info(f"📝 Created **{len(chunks)}** chunks")
-                ids=[f"chunk-{i}" for i in range(len(chunks))]
-                collection.upsert(ids=ids,documents=chunks,metadatas=[{"index":i} for i in range(len(chunks))])
-                st.success(f"🎉 Indexed {len(chunks)} chunks! Refresh to start chatting.")
-                st.balloons()
-            except Exception as e:
-                st.error(f"❌ Error: {e}")
+    st.info("📋 **Welcome!** Upload your first SOP document using the sidebar")
 else:
     col1,col2,col3=st.columns(3)
     with col1:
@@ -85,48 +74,71 @@ else:
     with col3:
         st.markdown('<div class="stat-box"><h3>🤖 Model</h3><p style="font-size:1.3rem;font-weight:bold;color:#8b5cf6">Llama-3.3-70b</p><p style="color:#94a3b8">Groq API</p></div>',unsafe_allow_html=True)
 
-    with st.sidebar:
-        st.markdown("### 💡 Example Questions")
-        for icon,q in [("🔴","What are the severity levels?"),("📅","Update cadence for Sev2?"),("⚠️","Handle NodeNotReady?"),("🔍","Tools for detection?"),("📝","What to document?")]:
-            if st.button(f"{icon} {q}",key=q,use_container_width=True):
-                st.session_state.clicked_question=q
-        st.divider()
+# Sidebar with upload and example questions
+with st.sidebar:
+    st.markdown("### 📁 Document Management")
+    
+    # Upload new SOP
+    uploaded_file=st.file_uploader("📤 Upload New SOP",type=['docx'],key="sop_uploader")
+    if uploaded_file:
+        if st.button("✨ Process & Add to Database",type="primary",use_container_width=True):
+            with st.spinner("⚡ Processing document..."):
+                try:
+                    raw_text=process_docx(uploaded_file)
+                    st.success(f"✅ Extracted **{len(raw_text):,}** characters")
+                    
+                    chunks=chunk_text(raw_text)
+                    st.info(f"📝 Created **{len(chunks)}** chunks")
+                    
+                    # Get current max chunk ID to avoid conflicts
+                    existing_ids=collection.get()["ids"]
+                    if existing_ids:
+                        max_num=max([int(id.split("-")[1]) for id in existing_ids if "-" in id])
+                        start_idx=max_num+1
+                    else:
+                        start_idx=0
+                    
+                    new_ids=[f"chunk-{start_idx+i}" for i in range(len(chunks))]
+                    collection.upsert(ids=new_ids,documents=chunks,metadatas=[{"index":start_idx+i,"source":uploaded_file.name} for i in range(len(chunks))])
+                    
+                    st.success(f"🎉 Successfully added {len(chunks)} chunks from {uploaded_file.name}!")
+                    st.balloons()
+                    time.sleep(2)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
+    
+    st.divider()
+    st.markdown("### 💡 Example Questions")
+    for icon,q in [("🔴","What are the severity levels?"),("📅","Update cadence for Sev2?"),("⚠️","Handle NodeNotReady?"),("🔍","Tools for detection?"),("📝","What to document?")]:
+        if st.button(f"{icon} {q}",key=q,use_container_width=True):
+            st.session_state.clicked_question=q
+    
+    st.divider()
+    st.markdown("### 🛠️ Tech Stack\n- **🗄️** ChromaDB\n- **🧠** Llama-3.3-70b\n- **🎨** Streamlit\n- **🔗** RAG Pipeline")
 
-    #                           if collection.count()>0:
-                # if st.button("🗑️ Clear Database & Upload New SOP",type="primary",use_container_width=True):
-                        # try:
-                                # collection.delete(ids=collection.get()["ids"])
-                                # st.success("✅ Database cleared! Upload a new document below")
-                                # st.balloons()
-                        # except Exception as e:
-                                # st.error(f"Error clearing database: {e}")
-        st.markdown("### 🛠️ Tech Stack\n- **🗄️** ChromaDB\n- **🧠** Llama-3.3-70b\n- **🎨** Streamlit\n- **🔗** RAG Pipeline")
-#         st.divider()
-            # if st.button("🔄 Reset Database",type="secondary",use_container_width=True):
-                    # client.delete_collection("sop_chunks")
-                                    # client.get_or_create_collection("sop_chunks")
-                    # st.success("✅ Reset! Refresh page")
-                    # time.sleep(1)
-                    # st.rerun()
-
+# Chat interface
+if collection.count()>0:
     if "messages" not in st.session_state:
         st.session_state.messages=[]
-
+        
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"],avatar="🧑‍💻" if msg["role"]=="user" else "🤖"):
             st.markdown(msg["content"])
             if "metadata" in msg:
                 st.caption(f"📎 {msg['metadata']['source']} | ⚡ {msg['metadata']['latency']}ms")
-
+    
     prompt=st.session_state.pop("clicked_question",None) or st.chat_input("💬 Ask about incidents, procedures...")
-
+    
     if prompt:
         st.session_state.messages.append({"role":"user","content":prompt})
         with st.chat_message("user",avatar="🧑‍💻"):
             st.markdown(prompt)
+        
         with st.chat_message("assistant",avatar="🤖"):
             with st.spinner("🔍 Searching..."):
                 response,source,latency=answer_sop(prompt)
                 st.markdown(response)
                 st.caption(f"📎 `{source}` | ⚡ {latency}ms")
+        
         st.session_state.messages.append({"role":"assistant","content":response,"metadata":{"source":source,"latency":latency}})
