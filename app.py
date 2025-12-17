@@ -92,13 +92,13 @@ else:
                 st.session_state.clicked_question=q
         st.divider()
         st.markdown("### 🛠️ Tech Stack\n- **🗄️** ChromaDB\n- **🧠** Llama-3.3-70b\n- **🎨** Streamlit\n- **🔗** RAG Pipeline")
-        st.divider()
-        if st.button("🔄 Reset Database",type="secondary",use_container_width=True):
-            client.delete_collection("sop_chunks")
-                    client.get_or_create_collection("sop_chunks")
-            st.success("✅ Reset! Refresh page")
-            time.sleep(1)
-            st.rerun()
+#         st.divider()
+            # if st.button("🔄 Reset Database",type="secondary",use_container_width=True):
+                    # client.delete_collection("sop_chunks")
+                                    # client.get_or_create_collection("sop_chunks")
+                    # st.success("✅ Reset! Refresh page")
+                    # time.sleep(1)
+                    # st.rerun()
 
     if "messages" not in st.session_state:
         st.session_state.messages=[]
