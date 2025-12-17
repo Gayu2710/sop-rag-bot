@@ -34,15 +34,14 @@ def chunk_text(text:str,chunk_size:int=1000,chunk_overlap:int=200):
 def process_docx(file):
     doc=docx.Document(file)
     full_text=[]
-    for element in doc.element.body:
-        if element.tag.endswith('p'):
-            para=doc.text.paragraph.Paragraph(element,doc)
-            if para.text.strip():full_text.append(para.text)
-        elif element.tag.endswith('tbl'):
-            table=docx.table.Table(element,doc)
-            for row in table.rows:
-                row_text=' | '.join([cell.text.strip() for cell in row.cells])
-                if row_text.strip():full_text.append(row_text)
+    for para in doc.paragraphs:
+        if para.text.strip():
+            full_text.append(para.text)
+    for table in doc.tables:
+        for row in table.rows:
+            row_text=' | '.join([cell.text.strip() for cell in row.cells])
+            if row_text.strip():
+                full_text.append(row_text)
     return "\n".join(full_text)
 
 def answer_sop(question):
