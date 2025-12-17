@@ -95,6 +95,7 @@ else:
         st.divider()
         if st.button("🔄 Reset Database",type="secondary",use_container_width=True):
             client.delete_collection("sop_chunks")
+                    client.get_or_create_collection("sop_chunks")
             st.success("✅ Reset! Refresh page")
             time.sleep(1)
             st.rerun()
