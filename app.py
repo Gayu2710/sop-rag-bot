@@ -91,6 +91,15 @@ else:
             if st.button(f"{icon} {q}",key=q,use_container_width=True):
                 st.session_state.clicked_question=q
         st.divider()
+
+                          if collection.count()>0:
+        if st.button("🗑️ Clear Database & Upload New SOP",type="primary",use_container_width=True):
+            try:
+                collection.delete(ids=collection.get()["ids"])
+                st.success("✅ Database cleared! Upload a new document below")
+                st.balloons()
+            except Exception as e:
+                st.error(f"Error clearing database: {e}")
         st.markdown("### 🛠️ Tech Stack\n- **🗄️** ChromaDB\n- **🧠** Llama-3.3-70b\n- **🎨** Streamlit\n- **🔗** RAG Pipeline")
 #         st.divider()
             # if st.button("🔄 Reset Database",type="secondary",use_container_width=True):
