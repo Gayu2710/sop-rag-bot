@@ -96,7 +96,6 @@ else:
         if st.button("🔄 Reset Database",type="secondary",use_container_width=True):
             client.delete_collection("sop_chunks")
             st.success("✅ Reset! Refresh page")
-                               st.cache_resource.clear()
             time.sleep(1)
             st.rerun()
 
